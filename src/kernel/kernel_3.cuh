@@ -62,7 +62,7 @@ __global__ void mysgemm_v3(int M, int N, int K, float alpha, float *A, float *B,
                 tmp[j] += As[(ty + j) * BK + i] * tmp[TM];
             }
         }
-        __syncthreads();
+        __syncthreads(); // so no one overwrites As/Bs before others finish consuming them
     }
     #pragma unroll
     for (int j = 0; j < TM; j++) {

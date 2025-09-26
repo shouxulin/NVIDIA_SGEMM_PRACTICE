@@ -28,14 +28,14 @@ __global__ void mysgemm_v2(int M, int N, int K, float alpha, float *A, float *B,
 
     float tmp = 0.;
     for (int k = 0; k < K; k += BK) {
-        // 缓存A_tile和B_tile
+        // 缓存A_tile和B_tile --> still enable colascing
         As[ty * BK + tx] = A[ty * K + tx];
         Bs[ty * BN + tx] = B[ty * N + tx];
         // 同步所有线程缓存完成
         __syncthreads();
         A += BK;
         B += BK * N;
-        for (int i = 0; i < BK; i++) {
+        for (int i = 0; i < BK; i++) { // --> still enable colascing
             tmp += As[ty * BK + i] * Bs[i * BN + tx];
         }
         // FMA计算需要读取缓存数据，在新一轮写入缓存前进行同步，确保所有线程计算完成
