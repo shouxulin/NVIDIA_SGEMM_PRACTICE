@@ -2,6 +2,14 @@
 #include "utils.cuh"
 #include "kernel.cuh"
 
+#define CUDA_CHECK(x) do { \
+    cudaError_t err = (x); \
+    if (err != cudaSuccess) { \
+        fprintf(stderr, "CUDA error %s:%d: %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
+        std::exit(1); \
+    } \
+} while (0)
+
 float get_sec() {
     struct timeval time;
     gettimeofday(&time, NULL);
@@ -128,6 +136,19 @@ void test_mysgemm_v2(int M, int N, int K, float alpha, float *A, float *B, float
     mysgemm_v2<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void test_mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C) {
+    const int block_dim = 1;
+    dim3 blockDim(block_dim);
+    // dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+    dim3 gridDim(CEIL_DIV(N, block_dim), 1);
+
+    mysgemm_gh<block_dim><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+    CUDA_CHECK(cudaPeekAtLastError());
+
+    // wait for completion and catch runtime errors from the kernel
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
 void test_mysgemm_v3(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C) {
     dim3 blockDim(512);
     dim3 gridDim(CEIL_DIV(M, 64), CEIL_DIV(N, 64));
@@ -192,6 +213,9 @@ void test_kernel(int kernel_num, int M, int N, int K, float alpha, float *A, flo
             break;
         case 7:
             test_mysgemm_v7(M, N, K, alpha, A, B, beta, C);
+            break;
+        case 8:
+            test_mysgemm_gh(M, N, K, alpha, A, B, beta, C);
             break;
         default:
             break;
