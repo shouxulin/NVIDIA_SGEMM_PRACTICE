@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv) {
     if (argc != 4) {
-        printf("Please select a kernel (range 0 - 11, here 0 is for NVIDIA cuBLAS).\n");
+        printf("./main <kernel> <dim> <print>.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -42,8 +42,8 @@ int main(int argc, char **argv) {
     // int size_len = 24;
     int SIZE[size_len];
     for (int i = 0; i < size_len; i++)
-        SIZE[i] = 256 * (i + 1);
-        // SIZE[i] = 1 * (i + 1);
+        // SIZE[i] = 256 * (i + 1);
+        SIZE[i] = 1 * (i + 1);
 
     int m, n, k, max_size;
     max_size = SIZE[size_len - 1];
@@ -65,21 +65,25 @@ int main(int argc, char **argv) {
     copy_matrix(C, C_ref, max_size * max_size);
 
     cudaCheck(cudaMalloc((void **) &dA, sizeof(float) * max_size * max_size));
-    cudaCheck(cudaMalloc((void **) &dB, sizeof(float) * max_size * max_size));
+    // cudaCheck(cudaMalloc((void **) &dB, sizeof(float) * max_size * max_size));
     cudaCheck(cudaMalloc((void **) &dC, sizeof(float) * max_size * max_size));
     cudaCheck(cudaMalloc((void **) &dC_ref, sizeof(float) * max_size * max_size));
 
     cudaCheck(cudaMemcpy(dA, A, sizeof(float) * max_size * max_size, cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dB, B, sizeof(float) * max_size * max_size, cudaMemcpyHostToDevice));
+    // cudaCheck(cudaMemcpy(dB, B, sizeof(float) * max_size * max_size, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(dC, C, sizeof(float) * max_size * max_size, cudaMemcpyHostToDevice));
     cudaCheck(cudaMemcpy(dC_ref, C_ref, sizeof(float) * max_size * max_size, cudaMemcpyHostToDevice));
 
+
+    dB = B;
+
     int repeat_times = 1;
+
     for (int i = 0; i < size_len; i++) {
-        // if (i != size_len - 1)
-        // {
-        //     continue;
-        // }
+        if (i != size_len - 1)
+        {
+            continue;
+        }
         
         m = n = k = SIZE[i];
 
@@ -121,7 +125,7 @@ int main(int argc, char **argv) {
             } else{
                 printf("Passed the correctness verification against NVIDIA cuBLAS.\n");
             }
-
+            
         }
         cudaDeviceSynchronize();
 
@@ -147,7 +151,7 @@ int main(int argc, char **argv) {
     free(C);
     free(C_ref);
     cudaFree(dA);
-    cudaFree(dB);
+    // cudaFree(dB);
     cudaFree(dC);
     cudaFree(dC_ref);
 
