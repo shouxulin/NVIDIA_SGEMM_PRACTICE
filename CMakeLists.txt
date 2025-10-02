@@ -31,7 +31,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
 # 生成可执行文件
 CUDA_ADD_EXECUTABLE(sgemm sgemm.cu ${SRC})
 CUDA_ADD_EXECUTABLE(main main.cu ${SRC})
+CUDA_ADD_EXECUTABLE(benchmark benchmark.cu ${SRC})
 
 # link cudart cublas
 target_link_libraries(sgemm ${CUDA_LIBRARIES} ${CUDA_cublas_LIBRARY})
 target_link_libraries(main ${CUDA_LIBRARIES} ${CUDA_cublas_LIBRARY})
+target_link_libraries(benchmark ${CUDA_LIBRARIES} ${CUDA_cublas_LIBRARY})
