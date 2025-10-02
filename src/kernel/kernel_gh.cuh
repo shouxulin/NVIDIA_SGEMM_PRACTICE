@@ -8,7 +8,7 @@
 
 #define CEIL_DIV(M, N) ((M) + (N)-1) / (N)
 
-template<const int BLOCK_SIZE>
+template<const int BLOCK_DIM>
 __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C) {
 
     float *A_start = A; 
@@ -16,182 +16,129 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
     int bx = blockIdx.x;
     int by = blockIdx.y;
 
-    const int BM = BLOCK_SIZE;
-    const int BN = BLOCK_SIZE;
-    const int BK = 1;
+    const int BM = BLOCK_DIM;
+    const int BN = BLOCK_DIM;
+    const int BK = BLOCK_DIM;
 
-    int tx = threadIdx.x % BN;
-    int ty = threadIdx.x / BN;
+    // int tx = threadIdx.x % BN;
+    // int ty = threadIdx.x / BN;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
 
-    if (bx ==0 && by ==0 && tx ==0 && ty ==0)
+
+    if (threadIdx.x==0 && threadIdx.y==0)
     {
-        printf("BLOCK_SIZE=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d\n", BLOCK_SIZE, BM, BN, BK, gridDim.x, gridDim.y);
+        printf("BLOCK_DIM=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d, blockIdx.x=%d, blockIdx.y=%d\n", BLOCK_DIM, BM, BN, BK, gridDim.x, gridDim.y, bx, by);
     }
+
+    
+    
+
+    // if (bx ==0 && by ==0 && tx ==0 && ty ==0)
+    // {
+    //     printf("BLOCK_DIM=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d\n", BLOCK_DIM, BM, BN, BK, gridDim.x, gridDim.y);
+    // }
+
+
 
     // 申请共享内存空间
     __shared__ float As[BM * BK];
     __shared__ float Bs[BK * BN];
 
 
-    const int K_TILE_SIZE = 1;
+    bool is_thread_0 = (threadIdx.x == 0 && threadIdx.y == 0 && bx == 1 && by == 0);
 
-    const int NUM_K_TILE = CEIL_DIV(K, K_TILE_SIZE);
-
-
-    __shared__ float tmps[BN * K_TILE_SIZE]; // 每个线程保存一个 M_TILE 维的临时结果
-    // tmps = &tmps[tx * K_TILE_SIZE]; // 移动到当前线程的tmps起始位置
-    const int tmp_offset = tx * K_TILE_SIZE;
-
-    // 初始化 tmps
-    #pragma unroll
-    for (int i = 0; i < K_TILE_SIZE; i++)
-    {
-        tmps[tmp_offset + i] = 0.;
-    }
-    __syncthreads();
-
-
-    bool is_thread_0 = (threadIdx.x == 0 && threadIdx.y == 0 && bx == 0 && by == 0);
-
-
-    
-
-
-
-    // 移动到当前block
-    // A = &A[by * BM * K];
-    // B = &B[bx * BN];
-    // C = &C[by * BM * N + bx * BN];
-
-    // A = &A[];
     B = &B[bx * BN];
 
-    int this_TILE_SIZE;
-    int k;
-    for (int tile = 0; tile < NUM_K_TILE; tile++)
-    {
-        if (tile == NUM_K_TILE - 1) {
-            this_TILE_SIZE = K - tile * K_TILE_SIZE;
-        } else
+    float tmp;
+
+    #pragma unroll
+    for (int k = 0; k < K; k += BK) {
+        A = &A_start[k];
+
+        if (is_thread_0)
         {
-            this_TILE_SIZE = K_TILE_SIZE;
+            printf("--- Sliding k=%d, B index starts %d\n", k, bx * BN + k * N);
         }
 
-        if (is_thread_0) {
-            printf("Processing tile %d / %d, this_TILE_SIZE=%d\n", tile, NUM_K_TILE, this_TILE_SIZE);
-        }
-
-
-        for (int k_in_tile = 0; k_in_tile < this_TILE_SIZE; k_in_tile++)
+        // cache B block
+        Bs[ty * BN + tx] = B[ty * N + tx];
+        __syncthreads();
+        if (is_thread_0)
         {
-            k = tile * K_TILE_SIZE + k_in_tile;
-            
-            A = &A_start[k * BK];
-            
-
-            if (is_thread_0)
+            for (int i_bk = 0; i_bk < BK; i_bk++)
             {
-                printf("--- Sliding k=%d, B index = %d\n", k, bx * BN + k * BK * N);
-            }
-            
-
-            Bs[ty * BN + tx] = B[ty * N + tx];
-
-            __syncthreads();
-            if (is_thread_0)
-            {
-                for (int i = 0; i < BLOCK_SIZE; i++)
+                for (int j_bn = 0; j_bn < BN; j_bn++)
                 {
-                    printf("\tBs[%d] = %f ", i, Bs[i]);
+                    printf("\tBs[%d, %d] = %f\n", i_bk, j_bn, Bs[i_bk * BN + j_bn]);
+                }
+            }
+            printf("\n");
+        }
+
+        #pragma unroll
+        for (int i = 0; i < M; i += BM)
+        {
+            if (is_thread_0)
+            {
+                printf("\t--- Sliding i=%d, A index starts %d\n", i, k + i * K);
+            }
+
+            // cache A block
+            // As[tx * BK] = A[tx * K];
+            As[ty * BK + tx] = A[ty * K + tx];
+            __syncthreads();
+
+
+            if (is_thread_0)
+            {
+                for (int i_bm = 0; i_bm < BM; i_bm++)
+                {
+                    for (int j_bk = 0; j_bk < BK; j_bk++)
+                    {
+                        printf("\t\tAs[%d, %d] = %f\n", i_bm, j_bk, As[i_bm * BK + j_bk]);
+                    }
                 }
                 printf("\n");
-                
             }
 
-
-            // slide across M dimension in A
+            tmp = 0;
             #pragma unroll
-            for (int i = 0; i < M; i += BM)
+            for (int l = 0; l < BK; l++)
             {
-                if (is_thread_0)
-                {
-                    printf("\t--- Sliding i=%d, A index = %d\n", i, k * BK + i * BM * K);
-                }
-                    
-                As[tx * BK] = A[tx * K];
-
-                
-
-                // 同步所有线程缓存完成
-                __syncthreads();
-
-
-                if (is_thread_0)
-                {
-                    for (int i = 0; i < BLOCK_SIZE; i++)
-                    {
-                        printf("\t\tAs[%d] = %f ", i, As[i]);
-                    }
-                    printf("\n");
-                }
-
-                float my_tmp = 0;
-                #pragma unroll
-                for (int l = 0; l < BLOCK_SIZE; l++)
-                {
-                    my_tmp += As[l];
-                }
-                my_tmp *=  Bs[tx];
-
-                if (k % K_TILE_SIZE == 0) {
-                    tmps[tmp_offset + k_in_tile] = my_tmp;
-                } else {
-                    tmps[tmp_offset + k_in_tile] += my_tmp;
-                }
-
-
-                // FMA计算需要读取缓存数据，在新一轮写入缓存前进行同步，确保所有线程计算完成
-                __syncthreads();
-
-
-                if (is_thread_0)
-                {
-                    printf("\t\ttmps[%d] (C[%d]) = %f\n", k_in_tile, k*N+tx, tmps[tmp_offset + k_in_tile]);
-                }
-
-
-                A += BM * K;
-
-
-
+                tmp += As[ty * BK + l] * Bs[l * BN + tx];
             }
 
+            
+
+            if (k == 0) {
+                // C[(i * BM + ty) * N + (bx * BN + tx)] = beta * C[(i * BM + ty) * N + (bx * BN + tx)];
+                C[(i + ty) * N + (bx * BN + tx)] = beta * C[(i + ty) * N + (bx * BN + tx)];
+            }
+
+            // update correspoding C element
+            // C[(i * BM + ty) * N + (bx * BN + tx)] += alpha * tmp;
+            C[(i + ty) * N + (bx * BN + tx)] += alpha * tmp;
 
 
+            // FMA计算需要读取缓存数据，在新一轮写入缓存前进行同步，确保所有线程计算完成
+            __syncthreads();
 
-            // move B
-            B += BK * N;
-
-
-        }
-
-
-        // update C because in the next tile, tmp will be overwritten
-        #pragma unroll
-        for (int i = 0; i < this_TILE_SIZE; i++)
-        {
-            C[(tile * K_TILE_SIZE + i) * N + tx] = alpha * tmps[tmp_offset + i] + beta * C[(tile * K_TILE_SIZE + i) * N + tx];
             if (is_thread_0)
             {
-                printf("Updating C at C[%d] = tmp[%d] = %f\n", (tile * K_TILE_SIZE + i) * N + tx, i, tmps[tmp_offset + i]);
+                printf("\t\tcumulate tmp=%f to C[%d, %d] = %f\n", tmp, i + ty, bx * BN + tx, C[(i + ty) * N + (bx * BN + tx)]);
             }
-            
+
+            // move A pointer to next block
+            A += BM * K;
+
         }
 
+        // move B pointer to next block
+        B += BK * N;
+    
     }
-    
 
-    
 
 
 
