@@ -9,12 +9,6 @@
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
 
 int main(int argc, char **argv) {
-    // if (argc != 5) {
-    //     printf("./main <kernel> <dim> <warmup> <repeat-times> <print-flag> <verify>.\n");
-    //     exit(EXIT_FAILURE);
-    // }
-
-
 
     int kernel_num = 8;
     int dim = 256;
@@ -156,7 +150,6 @@ int main(int argc, char **argv) {
         free(C[i]);
         free(C_ref[i]);
         cudaFree(dA[i]);
-        // cudaFree(dB);
         cudaFree(dC[i]);
         cudaFree(dC_ref[i]);
     }
