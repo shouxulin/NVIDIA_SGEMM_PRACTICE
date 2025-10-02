@@ -26,18 +26,11 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
     int ty = threadIdx.y;
 
 
-    if (threadIdx.x==0 && threadIdx.y==0)
-    {
-        printf("BLOCK_DIM=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d, blockIdx.x=%d, blockIdx.y=%d\n", BLOCK_DIM, BM, BN, BK, gridDim.x, gridDim.y, bx, by);
-    }
-
-    
-    
-
-    // if (bx ==0 && by ==0 && tx ==0 && ty ==0)
+    // if (threadIdx.x==0 && threadIdx.y==0)
     // {
-    //     printf("BLOCK_DIM=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d\n", BLOCK_DIM, BM, BN, BK, gridDim.x, gridDim.y);
+    //     printf("BLOCK_DIM=%d, BM=%d, BN=%d, BK=%d, gridDim.x=%d, gridDim.y=%d, blockIdx.x=%d, blockIdx.y=%d\n", BLOCK_DIM, BM, BN, BK, gridDim.x, gridDim.y, bx, by);
     // }
+
 
 
 
@@ -46,7 +39,8 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
     __shared__ float Bs[BK * BN];
 
 
-    bool is_thread_0 = (threadIdx.x == 0 && threadIdx.y == 0 && bx == 1 && by == 0);
+    // bool is_thread_0 = (threadIdx.x == 0 && threadIdx.y == 0 && bx == 0 && by == 0);
+    // bool is_thread_0 = false;
 
     B = &B[bx * BN];
 
@@ -56,33 +50,34 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
     for (int k = 0; k < K; k += BK) {
         A = &A_start[k];
 
-        if (is_thread_0)
-        {
-            printf("--- Sliding k=%d, B index starts %d\n", k, bx * BN + k * N);
-        }
+        // if (is_thread_0)
+        // {
+        //     printf("--- Sliding k=%d, B index starts %d\n", k, bx * BN + k * N);
+        // }
 
         // cache B block
         Bs[ty * BN + tx] = B[ty * N + tx];
-        __syncthreads();
-        if (is_thread_0)
-        {
-            for (int i_bk = 0; i_bk < BK; i_bk++)
-            {
-                for (int j_bn = 0; j_bn < BN; j_bn++)
-                {
-                    printf("\tBs[%d, %d] = %f\n", i_bk, j_bn, Bs[i_bk * BN + j_bn]);
-                }
-            }
-            printf("\n");
-        }
+
+        // __syncthreads();
+        // if (is_thread_0)
+        // {
+        //     for (int i_bk = 0; i_bk < BK; i_bk++)
+        //     {
+        //         for (int j_bn = 0; j_bn < BN; j_bn++)
+        //         {
+        //             printf("\tBs[%d, %d] = %f\n", i_bk, j_bn, Bs[i_bk * BN + j_bn]);
+        //         }
+        //     }
+        //     printf("\n");
+        // }
 
         #pragma unroll
         for (int i = 0; i < M; i += BM)
         {
-            if (is_thread_0)
-            {
-                printf("\t--- Sliding i=%d, A index starts %d\n", i, k + i * K);
-            }
+            // if (is_thread_0)
+            // {
+            //     printf("\t--- Sliding i=%d, A index starts %d\n", i, k + i * K);
+            // }
 
             // cache A block
             // As[tx * BK] = A[tx * K];
@@ -90,17 +85,17 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
             __syncthreads();
 
 
-            if (is_thread_0)
-            {
-                for (int i_bm = 0; i_bm < BM; i_bm++)
-                {
-                    for (int j_bk = 0; j_bk < BK; j_bk++)
-                    {
-                        printf("\t\tAs[%d, %d] = %f\n", i_bm, j_bk, As[i_bm * BK + j_bk]);
-                    }
-                }
-                printf("\n");
-            }
+            // if (is_thread_0)
+            // {
+            //     for (int i_bm = 0; i_bm < BM; i_bm++)
+            //     {
+            //         for (int j_bk = 0; j_bk < BK; j_bk++)
+            //         {
+            //             printf("\t\tAs[%d, %d] = %f\n", i_bm, j_bk, As[i_bm * BK + j_bk]);
+            //         }
+            //     }
+            //     printf("\n");
+            // }
 
             tmp = 0;
             #pragma unroll
@@ -124,10 +119,10 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
             // FMA计算需要读取缓存数据，在新一轮写入缓存前进行同步，确保所有线程计算完成
             __syncthreads();
 
-            if (is_thread_0)
-            {
-                printf("\t\tcumulate tmp=%f to C[%d, %d] = %f\n", tmp, i + ty, bx * BN + tx, C[(i + ty) * N + (bx * BN + tx)]);
-            }
+            // if (is_thread_0)
+            // {
+            //     printf("\t\tcumulate tmp=%f to C[%d, %d] = %f\n", tmp, i + ty, bx * BN + tx, C[(i + ty) * N + (bx * BN + tx)]);
+            // }
 
             // move A pointer to next block
             A += BM * K;

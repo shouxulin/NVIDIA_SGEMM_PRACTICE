@@ -1,1 +1,6 @@
 build/
+/test
+/test_original
+/images
+main
+sgemm

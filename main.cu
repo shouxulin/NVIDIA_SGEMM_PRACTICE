@@ -42,8 +42,8 @@ int main(int argc, char **argv) {
     // int size_len = 24;
     int SIZE[size_len];
     for (int i = 0; i < size_len; i++)
-        // SIZE[i] = 256 * (i + 1);
-        SIZE[i] = 1 * (i + 1);
+        SIZE[i] = 256 * (i + 1);
+        // SIZE[i] = 1 * (i + 1);
 
     int m, n, k, max_size;
     max_size = SIZE[size_len - 1];
@@ -76,10 +76,10 @@ int main(int argc, char **argv) {
 
     int repeat_times = 1;
     for (int i = 0; i < size_len; i++) {
-        if (i != size_len - 1)
-        {
-            continue;
-        }
+        // if (i != size_len - 1)
+        // {
+        //     continue;
+        // }
         
         m = n = k = SIZE[i];
 

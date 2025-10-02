@@ -137,10 +137,10 @@ void test_mysgemm_v2(int M, int N, int K, float alpha, float *A, float *B, float
 }
 
 void test_mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C) {
-    const int block_dim = 2;
+    const int block_dim = 32;
     dim3 blockDim(block_dim, block_dim);
     // dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
-    dim3 gridDim(CEIL_DIV(N, block_dim * block_dim), 1);
+    dim3 gridDim(CEIL_DIV(N, block_dim), 1);
 
     mysgemm_gh<block_dim><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
     CUDA_CHECK(cudaPeekAtLastError());
