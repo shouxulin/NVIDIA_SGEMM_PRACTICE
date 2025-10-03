@@ -14,7 +14,7 @@ __global__ void mysgemm_gh(int M, int N, int K, float alpha, float *A, float *B,
     float *A_start = A; 
     // float *B_start = B;
     int bx = blockIdx.x;
-    int by = blockIdx.y;
+    // int by = blockIdx.y;
 
     const int BM = BLOCK_DIM;
     const int BN = BLOCK_DIM;

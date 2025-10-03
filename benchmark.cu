@@ -135,13 +135,14 @@ int main(int argc, char **argv) {
     cudaEventElapsedTime(&elapsed_time, beg, end);
     elapsed_time /= 1000.; //换算成秒
 
+    float avg_elapsed_time = elapsed_time / repeat_times;
+    float avg_gflops = 2. * 1e-9 * repeat_times * m * n * k / elapsed_time;
+
     printf("Average elasped time: (%f) second, performance: (%f) GFLOPS. size: (%d).\n",
-            elapsed_time / repeat_times, 2. * 1e-9 * repeat_times * m * n * k / elapsed_time, m);
+            avg_elapsed_time, avg_gflops, m);
     fflush(stdout);
     
     
-    
-
     // 释放CPU和GPU空间
     for (int i = 0; i < warmup_times + repeat_times; i++)
     {
@@ -153,5 +154,13 @@ int main(int argc, char **argv) {
         cudaFree(dC[i]);
         cudaFree(dC_ref[i]);
     }
+
+    // write performance result to file
+    std::ofstream outfile;
+    outfile.open("output/perf/benchmark.csv", std::ios_base::app);
+    outfile << kernel_num << "," << dim <<  "," << avg_elapsed_time <<  "," << avg_gflops << std::endl;
+    outfile.close();
+
+
     return 0;
 };
